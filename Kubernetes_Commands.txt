@@ -1,0 +1,204 @@
+Kubernetes kubectl commands
+
+----------
+Cluster
+----------
+kubectl version --short --client
+kubectl version --client
+kubectl get componentstatuses
+kubectl get nodes 
+kubectl cluster-info 
+kubectl cluster-info dump --output-directory=/path/to/cluster-state   # Dump current cluster state to /path/to/cluster-state
+
+------------------------
+Bash Auto Completion ~/.bashrc
+------------------------
+## kubectl completion bash
+source <(kubectl completion bash) # setup autocomplete in bash into the current shell, bash-completion package should be installed first.
+source <(kubectl completion zsh)
+source <(kubectl completion bash | sed s/kubectl/k/g) # if k is used as alias for kubectl
+echo "source <(kubectl completion bash)" >> ~/.bashrc # add autocomplete permanently to your bash shell.
+-------------------------------------------------------------------------------
+kubeconfig file
+https://www.civo.com/account/kubernetes
+https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#config
+https://nikgrozev.com/2019/10/03/switch-between-multiple-kubernetes-clusters-with-ease/
+-------------------------------------------------------------------------------
+alias k='/c/kubectl/kubectl.exe --kubeconfig=/c/kubectl/civo'
+kubectl --kubeconfig=civo get nodes
+
+kubectl config view
+kubectl config get-clusters
+kubectl config get-contexts
+kubectl config get-users
+kubectl config set-context [NAME | --current] [--cluster=cluster_nickname] [--user=user_nickname] [--namespace=namespace]
+kubectl config set-context my-context --namespace=mystuff
+kubectl config use-context CONTEXT_NAME
+kubectl config use-context my-context
+kubectl config set-context $(kubectl config current-context) --namespace=dev  # switch to dev namespace completely
+
+
+kubectl config view # Show Merged kubeconfig settings.
+
+# use multiple kubeconfig files at the same time and view merged config
+KUBECONFIG=~/.kube/config:~/.kube/kubconfig2 
+
+kubectl config view
+
+# get the password for the e2e user
+kubectl config view -o jsonpath='{.users[?(@.name == "e2e")].user.password}'
+
+kubectl config view -o jsonpath='{.users[].name}'    # display the first user
+kubectl config view -o jsonpath='{.users[*].name}'   # get a list of users
+kubectl config get-contexts                          # display list of contexts 
+kubectl config current-context                       # display the current-context
+kubectl config use-context my-cluster-name           # set the default context to my-cluster-name
+
+# add a new user to your kubeconf that supports basic auth
+kubectl config set-credentials kubeuser/foo.kubernetes.com --username=kubeuser --password=kubepassword
+
+# permanently save the namespace for all subsequent kubectl commands in that context.
+kubectl config set-context --current --namespace=ggckad-s2
+
+# set a context utilizing a specific username and namespace.
+kubectl config set-context gce --user=cluster-admin --namespace=foo \
+  && kubectl config use-context gce
+
+kubectl config unset users.foo  # delete user foo
+
+
+------------------
+Documentation
+------------------
+kubectl explain RESOURCE
+
+
+------------------
+watch live updates
+------------------
+watch kubectl get pods (or)
+kubectl get pods -w
+
+------------------
+labels & selectors
+------------------
+kubectl label node <node-name> key=value
+kubectl label pod <pod-name> key=value
+kubectl get nodes --show-labels
+kubectl get pods --show-labels
+
+----
+Pods
+----
+kubectl cluster-info
+kubectl get nodes
+kubectl run nginx --image nginx --dry-run=client
+kubectl run nginx --image nginx --dry-run=client –o yaml
+kubectl run test --image nginx --port 80  #- Also exposes port 80 of container
+kubectl run test --image nginx --port 80 --expose --dry-run=client #- Also exposes port 80 of container
+
+kubectl expose pod nginx --name nodeportsvc --port 80 --target-port 80 --type=NodePort
+
+kubectl get pods –o wide 
+kubectl get namespaces
+kubectl get pods -n <namespace-name>
+kubectl get pods –-all-namespaces
+kubectl create –f pod-definition.yml
+kubectl apply –f pod-definition.yml – if manifest file is changed/updated after deployment and need to re-deploy the pod again
+kubectl delete pod <pod-name>
+kubectl edit pod <pod-name>
+
+----------
+Replicaset
+----------
+kubectl create -f rs.yml
+kubectl replace -f rs.yml
+kubectl get rs –o wide
+kubectl get pods –o wide
+kubectl describe rs <rs-name>
+kubectl edit replicaset <replicaset-name> - edit a replicaset; like image, replicas
+kubectl delete replicaset <replicaset-name> - delete a replicaset; like image, replicas
+kubectl delete -f replica-set.yml
+kubectl get all  - get pods, replicasets, deployments, services all in one shot
+kubectl replace -f replicaset-definition.yml -replaces the pods with updated definition file
+kubectl scale -–replicas=6 –f replicaset-definition.yml – scale using definition file
+kubectl scale -–replicas=6 replicaset <replicaset-name> - using name of replicaset
+kubectl scale replicaset <replicaset-name> -–replicas=6 - using name of replicaset
+kubectl expose replicaset <replicaset-name> --name rs-svc --port=80 -  creates cluster IP service
+kubectl expose replicaset <replicaset-name> --name rs-svc --port=80 --target-port=80 --type=LoadBalancer
+
+
+--------------------
+Endpoints of service
+--------------------
+kubectl get ep
+
+------------
+Deployments
+------------
+
+kubectl create deployment nginx --image=nginx --dry-run -o yaml
+kubectl scale deployment <deployment-name> --replicas=5
+kubectl expose deployment <deployment-name> --port 8888
+kubectl expose deployment <deployment-name> --name httpenv-np --port 8888 --type NodePort
+kubectl expose deployment <deployment-name> --name httpenv-lb --port 8888 --type LoadBalancer
+
+kubectl create deployment nginx --image nginx --dry-run -o yaml
+kubectl create -f deployment.yml --record (--record is optional, it just records the events in the deployment)
+kubectl rollout status deployment <deployment -name> 
+kubectl get deployments
+kubectl get pods –o wide
+kubectl get all
+kubectl get deployment,replicaset,pod --show-labels 
+kubectl describe deployment <deployment-name>
+
+kubectl apply -f deployment.yml --record
+kubectl rollout status deployment <deployment -name> 
+
+
+kubectl edit deployment <deployment -name> - perform live edit of deployment
+kubectl scale deployment my-apache --replicas2
+
+
+kubectl rollout status deployment <deployment -name> 
+kubectl rollout history deployment <deployment -name> 
+kubectl delete -f <deployment-yaml-file> - deletes deployment and related dependencies
+kubectl rollout pause deployment <deployment -name> 
+kubectl rollout resume deployment <deployment -name> 
+
+kubectl set image deployment/myapp-deployment <container-name>:<new-image-name>
+kubectl rollout undo deployment/myapp-deployment
+kubectl rollout undo deployment/myapp-deployment --to-revision=1
+
+------
+logs
+------
+kubectl logs pod <pod-name> --tail 1 --follow
+kubectl logs deployment <deployment-name> --tail 1 --follow
+# Print logs from the app1 container in the app pod
+kubectl logs pod/app -c app1
+
+-----------
+namespaces
+-----------
+kubectl get namespaces
+kubectl get all -n kube-system #lists available objects under a specific namespace
+kubectl get all --all-namespaces #lists available objects under all available namespaces
+kubectl create ns dev # Namespace for Developer team
+kubectl create ns qa # Namespace for QA team
+kubectl create ns production # Namespace for Production team
+kubectl run nginx --image=nginx -n dev
+kubectl get pod/nginx –n dev
+kubectl create --namespace=qa -f pod.yaml
+kubectl apply --namespace=qa -f pod.yaml
+kubectl delete ns production
+
+FQDN: <service-name>.<namespace>.svc.cluster.local
+
+---------
+services
+---------
+kubectl create –f service.yml 
+kubectl get services or kubectl get svc
+kubectl describe service <service-name>
+
